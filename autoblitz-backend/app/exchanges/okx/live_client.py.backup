@@ -1,0 +1,313 @@
+# app/exchanges/okx/live_client.py
+import os
+import time
+import hmac
+import hashlib
+import base64
+import json
+import requests
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from decimal import Decimal, ROUND_DOWN
+import logging
+
+logger = logging.getLogger(__name__)
+
+class OKXLiveClient:
+    """OKX 실거래 클라이언트"""
+    
+    def __init__(self):
+        # 환경변수에서 API 키 로드
+        self.api_key = os.getenv('OKX_API_KEY')
+        self.secret_key = os.getenv('OKX_SECRET_KEY') 
+        self.passphrase = os.getenv('OKX_PASSPHRASE')
+        self.base_url = os.getenv('OKX_BASE_URL', 'https://www.okx.com')
+        
+        # 실거래 안전 설정
+        self.max_position_size = float(os.getenv('MAX_POSITION_SIZE', '100.0'))
+        self.min_order_size = float(os.getenv('MIN_ORDER_SIZE', '5.0'))
+        self.risk_limit_percent = float(os.getenv('RISK_LIMIT_PERCENT', '10.0'))
+        
+        # 실거래 확인
+        self.live_trading_enabled = os.getenv('LIVE_TRADING_ENABLED', 'false').lower() == 'true'
+        self.demo_mode = os.getenv('DEMO_MODE', 'true').lower() == 'true'
+        
+        # API 키 검증
+        if not all([self.api_key, self.secret_key, self.passphrase]):
+            raise ValueError("OKX API 키가 설정되지 않았습니다. .env 파일을 확인하세요.")
+        
+        if not self.live_trading_enabled:
+            raise ValueError("실거래가 활성화되지 않았습니다. LIVE_TRADING_ENABLED=true로 설정하세요.")
+            
+        logger.info(f"OKX 실거래 클라이언트 초기화 완료")
+        logger.info(f"최대 포지션: ${self.max_position_size}, 최소 주문: ${self.min_order_size}")
+    
+    def _generate_signature(self, timestamp: str, method: str, request_path: str, body: str = '') -> str:
+        """API 요청 서명 생성"""
+        message = timestamp + method + request_path + body
+        mac = hmac.new(
+            bytes(self.secret_key, encoding='utf8'),
+            bytes(message, encoding='utf-8'),
+            digestmod=hashlib.sha256
+        )
+        return base64.b64encode(mac.digest()).decode()
+    
+    def _get_headers(self, method: str, request_path: str, body: str = '') -> Dict[str, str]:
+        """API 요청 헤더 생성"""
+        timestamp = self._get_timestamp()
+        signature = self._generate_signature(timestamp, method, request_path, body)
+        
+        return {
+            'OK-ACCESS-KEY': self.api_key,
+            'OK-ACCESS-SIGN': signature,
+            'OK-ACCESS-TIMESTAMP': timestamp,
+            'OK-ACCESS-PASSPHRASE': self.passphrase,
+            'Content-Type': 'application/json'
+        }
+    
+    def _get_timestamp(self) -> str:
+        """현재 타임스탬프 반환"""
+        return str(time.time())
+    
+    def _make_request(self, method: str, endpoint: str, params: Dict = None, data: Dict = None) -> Dict:
+        """API 요청 실행"""
+        url = f"{self.base_url}{endpoint}"
+        body = json.dumps(data) if data else ''
+        headers = self._get_headers(method, endpoint, body)
+        
+        try:
+            if method == 'GET':
+                response = requests.get(url, headers=headers, params=params, timeout=10)
+            elif method == 'POST':
+                response = requests.post(url, headers=headers, data=body, timeout=10)
+            else:
+                raise ValueError(f"지원하지 않는 HTTP 메서드: {method}")
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            # OKX API 응답 코드 확인
+            if result.get('code') != '0':
+                raise Exception(f"OKX API 오류: {result.get('msg', 'Unknown error')}")
+            
+            return result
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API 요청 실패: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"API 응답 처리 실패: {e}")
+            raise
+    
+    def get_account_balance(self) -> Dict:
+        """계좌 잔고 조회"""
+        logger.info("계좌 잔고 조회 중...")
+        
+        response = self._make_request('GET', '/api/v5/account/balance')
+        
+        balances = {}
+        for detail in response['data'][0]['details']:
+            currency = detail['ccy']
+            available = float(detail['availBal'])
+            if available > 0:
+                balances[currency] = {
+                    'available': available,
+                    'total': float(detail['bal']),
+                    'frozen': float(detail['frozenBal'])
+                }
+        
+        logger.info(f"잔고 조회 완료: {len(balances)}개 통화")
+        return balances
+    
+    # get_balance 별칭 추가 (호환성)
+    def get_balance(self) -> Dict:
+        """get_account_balance와 동일 (호환성용)"""
+        return self.get_account_balance()
+
+    def get_ticker(self, symbol: str) -> Dict:
+        """실시간 시세 조회"""
+        response = self._make_request('GET', '/api/v5/market/ticker', {'instId': symbol})
+        
+        if not response['data']:
+            raise ValueError(f"심볼 {symbol}의 시세 정보를 찾을 수 없습니다.")
+        
+        ticker_data = response['data'][0]
+        return {
+            'symbol': ticker_data['instId'],
+            'last_price': float(ticker_data['last']),
+            'bid_price': float(ticker_data['bidPx']),
+            'ask_price': float(ticker_data['askPx']),
+            'high_24h': float(ticker_data['high24h']),
+            'low_24h': float(ticker_data['low24h']),
+            'volume_24h': float(ticker_data['vol24h']),
+            'timestamp': int(ticker_data['ts'])
+        }
+    
+    def validate_order_safety(self, symbol: str, side: str, size: float, price: float = None) -> bool:
+        """주문 안전성 검증"""
+        # 최소 주문 크기 확인
+        if size < self.min_order_size:
+            logger.warning(f"주문 크기가 최소값보다 작음: {size} < {self.min_order_size}")
+            return False
+        
+        # 최대 포지션 크기 확인
+        if size > self.max_position_size:
+            logger.warning(f"주문 크기가 최대값보다 큼: {size} > {self.max_position_size}")
+            return False
+        
+        # 계좌 잔고 확인
+        balances = self.get_account_balance()
+        
+        if side == 'buy':
+            # 매수의 경우 USDT 잔고 확인
+            usdt_balance = balances.get('USDT', {}).get('available', 0)
+            required_amount = size if price is None else size * price
+            
+            if usdt_balance < required_amount:
+                logger.warning(f"USDT 잔고 부족: {usdt_balance} < {required_amount}")
+                return False
+        
+        return True
+    
+    def place_market_order(self, symbol: str, side: str, size: float) -> Dict:
+        """시장가 주문"""
+        logger.info(f"시장가 주문 실행: {symbol} {side} {size}")
+        
+        # 안전성 검증
+        if not self.validate_order_safety(symbol, side, size):
+            raise ValueError("주문 안전성 검증 실패")
+        
+        # 실거래 재확인
+        if self.demo_mode:
+            logger.warning("데모 모드에서는 실제 주문이 실행되지 않습니다.")
+            return {'demo': True, 'order_id': 'demo_' + str(int(time.time()))}
+        
+        order_data = {
+            'instId': symbol,
+            'tdMode': 'cash',  # 현물 거래
+            'side': side,
+            'ordType': 'market',
+            'sz': str(size)
+        }
+        
+        logger.warning(f"🚨 실거래 주문 실행: {order_data}")
+        response = self._make_request('POST', '/api/v5/trade/order', data=order_data)
+        
+        if response['data']:
+            order_info = response['data'][0]
+            logger.info(f"✅ 주문 성공: {order_info['ordId']}")
+            return {
+                'order_id': order_info['ordId'],
+                'client_order_id': order_info.get('clOrdId'),
+                'symbol': symbol,
+                'side': side,
+                'size': size,
+                'status': 'submitted',
+                'timestamp': int(time.time() * 1000)
+            }
+        else:
+            raise Exception("주문 실행 실패: 응답 데이터가 없습니다.")
+    
+    def place_limit_order(self, symbol: str, side: str, size: float, price: float) -> Dict:
+        """지정가 주문"""
+        logger.info(f"지정가 주문 실행: {symbol} {side} {size} @ {price}")
+        
+        # 안전성 검증
+        if not self.validate_order_safety(symbol, side, size, price):
+            raise ValueError("주문 안전성 검증 실패")
+        
+        # 실거래 재확인
+        if self.demo_mode:
+            logger.warning("데모 모드에서는 실제 주문이 실행되지 않습니다.")
+            return {'demo': True, 'order_id': 'demo_' + str(int(time.time()))}
+        
+        order_data = {
+            'instId': symbol,
+            'tdMode': 'cash',  # 현물 거래
+            'side': side,
+            'ordType': 'limit',
+            'sz': str(size),
+            'px': str(price)
+        }
+        
+        logger.warning(f"🚨 실거래 주문 실행: {order_data}")
+        response = self._make_request('POST', '/api/v5/trade/order', data=order_data)
+        
+        if response['data']:
+            order_info = response['data'][0]
+            logger.info(f"✅ 주문 성공: {order_info['ordId']}")
+            return {
+                'order_id': order_info['ordId'],
+                'client_order_id': order_info.get('clOrdId'),
+                'symbol': symbol,
+                'side': side,
+                'size': size,
+                'price': price,
+                'status': 'submitted',
+                'timestamp': int(time.time() * 1000)
+            }
+        else:
+            raise Exception("주문 실행 실패: 응답 데이터가 없습니다.")
+    
+    def get_order_status(self, symbol: str, order_id: str) -> Dict:
+        """주문 상태 조회"""
+        params = {
+            'instId': symbol,
+            'ordId': order_id
+        }
+        
+        response = self._make_request('GET', '/api/v5/trade/order', params=params)
+        
+        if response['data']:
+            order_data = response['data'][0]
+            return {
+                'order_id': order_data['ordId'],
+                'symbol': order_data['instId'],
+                'side': order_data['side'],
+                'size': float(order_data['sz']),
+                'filled_size': float(order_data['fillSz']),
+                'price': float(order_data.get('px', 0)),
+                'avg_price': float(order_data.get('avgPx', 0)),
+                'status': order_data['state'],
+                'timestamp': int(order_data['uTime'])
+            }
+        else:
+            raise ValueError(f"주문 {order_id}을 찾을 수 없습니다.")
+    
+    def cancel_order(self, symbol: str, order_id: str) -> bool:
+        """주문 취소"""
+        logger.info(f"주문 취소: {order_id}")
+        
+        cancel_data = {
+            'instId': symbol,
+            'ordId': order_id
+        }
+        
+        response = self._make_request('POST', '/api/v5/trade/cancel-order', data=cancel_data)
+        
+        if response['data'] and response['data'][0]['sCode'] == '0':
+            logger.info(f"✅ 주문 취소 성공: {order_id}")
+            return True
+        else:
+            logger.error(f"❌ 주문 취소 실패: {order_id}")
+            return False
+    
+    def get_positions(self) -> List[Dict]:
+        """포지션 조회 (선물용)"""
+        response = self._make_request('GET', '/api/v5/account/positions')
+        
+        positions = []
+        for pos_data in response['data']:
+            if float(pos_data['pos']) != 0:  # 포지션이 있는 경우만
+                positions.append({
+                    'symbol': pos_data['instId'],
+                    'side': pos_data['posSide'],
+                    'size': float(pos_data['pos']),
+                    'avg_price': float(pos_data['avgPx']),
+                    'mark_price': float(pos_data['markPx']),
+                    'unrealized_pnl': float(pos_data['upl']),
+                    'unrealized_pnl_ratio': float(pos_data['uplRatio']),
+                    'timestamp': int(pos_data['uTime'])
+                })
+        
+        return positions

@@ -1,0 +1,76 @@
+"""
+AutoBlitz API - 간단 버전
+"""
+
+import logging
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="AutoBlitz API",
+    version="1.0.0",
+    description="암호화폐 자동매매 봇 API"
+)
+
+# CORS 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 개발용. 프로덕션에서는 특정 도메인으로 제한 필요
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# API 라우터 추가 (단계적으로)
+try:
+    from app.api.v1 import bots
+    app.include_router(bots.router, prefix="/api/v1/bots", tags=["bots"])
+    logger.info("✅ Bots router added")
+except Exception as e:
+    logger.error(f"❌ Bots router error: {str(e)}")
+
+try:
+    from app.api.v1 import auth
+    app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+    logger.info("✅ Auth router added")
+except Exception as e:
+    logger.error(f"❌ Auth router error: {str(e)}")
+
+try:
+    from app.api.v1 import users
+    app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+    logger.info("✅ Users router added")
+except Exception as e:
+    logger.error(f"❌ Users router error: {str(e)}")
+
+
+@app.get("/")
+async def root():
+    """루트 엔드포인트"""
+    return {
+        "name": "AutoBlitz",
+        "version": "1.0.0",
+        "description": "AI 기반 암호화폐 자동매매 시스템",
+        "docs": "/docs"
+    }
+
+
+@app.get("/health")
+async def health():
+    """헬스 체크 엔드포인트"""
+    return {
+        "status": "healthy",
+        "service": "AutoBlitz API"
+    }
+
+
+@app.get("/test")
+async def test():
+    """테스트 엔드포인트"""
+    return {
+        "message": "Test endpoint working"
+    }

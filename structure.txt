@@ -1,0 +1,266 @@
+.
+├── .devcontainer
+│   ├── devcontainer.json
+│   └── setup.sh
+├── .env.example
+├── .gitignore
+├── LICENSE
+├── README.md
+├── app
+│   ├── engines
+│   ├── exchanges
+│   │   └── okx
+│   │       └── client.py
+│   └── strategies
+│       └── dantaro
+│           └── okx_spot_v1.py
+├── autoblitz-backend
+│   ├── .env
+│   ├── .env.backup
+│   ├── .env.example
+│   ├── .gitignore
+│   ├── .gitkeep
+│   ├── README.md
+│   ├── advanced_trading_bot.py
+│   ├── advanced_web_bot.py
+│   ├── alembic
+│   │   ├── README.md
+│   │   └── versions
+│   ├── analyze_structure.sh
+│   ├── app
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── api
+│   │   │   ├── __init__.py
+│   │   │   ├── deps.py
+│   │   │   └── v1
+│   │   │       ├── __init__.py
+│   │   │       ├── auth.py
+│   │   │       ├── bots.py
+│   │   │       └── users.py
+│   │   ├── bot_engine
+│   │   │   ├── __init__.py
+│   │   │   ├── core
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── bot_runner.py
+│   │   │   │   └── lifecycle_manager.py
+│   │   │   ├── executors
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── order_executor.py
+│   │   │   │   └── strategy_executor.py
+│   │   │   └── managers
+│   │   │       ├── __init__.py
+│   │   │       ├── position_manager.py
+│   │   │       └── risk_manager.py
+│   │   ├── config
+│   │   │   ├── __init__.py
+│   │   │   └── live_trading_config.py
+│   │   ├── core
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py
+│   │   │   ├── database.py
+│   │   │   └── security.py
+│   │   ├── crud
+│   │   │   ├── README.md
+│   │   │   └── __init__.py
+│   │   ├── data
+│   │   │   └── coins
+│   │   │       ├── __init__.py
+│   │   │       ├── okx_coins_20250617_113547.json
+│   │   │       ├── okx_coins_20250617_114400.json
+│   │   │       └── okx_coins_latest.json -> okx_coins_20250617_114400.json
+│   │   ├── engines
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   └── realtime_trading_engine.py
+│   │   ├── exchanges
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── okx
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── client.py
+│   │   │   │   ├── client.py.backup
+│   │   │   │   ├── core
+│   │   │   │   ├── live_client.py
+│   │   │   │   ├── live_client.py.backup
+│   │   │   │   ├── models.py
+│   │   │   │   ├── timestamp_fix.py
+│   │   │   │   ├── trading
+│   │   │   │   └── validation
+│   │   │   └── upbit
+│   │   │       ├── __init__.py
+│   │   │       └── client.py
+│   │   ├── main.py
+│   │   ├── main.py.backup
+│   │   ├── management
+│   │   │   ├── README.md
+│   │   │   └── __init__.py
+│   │   ├── models
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── bot.py
+│   │   │   ├── trade.py
+│   │   │   ├── trading.py
+│   │   │   └── user.py
+│   │   ├── notifications
+│   │   │   ├── __init__.py
+│   │   │   └── live_alerts.py
+│   │   ├── safety
+│   │   │   ├── __init__.py
+│   │   │   └── trading_safety.py
+│   │   ├── schemas
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── bot.py
+│   │   │   ├── trade.py
+│   │   │   └── user.py
+│   │   ├── services
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── coin
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── coin_service.py
+│   │   │   └── exchange_service.py
+│   │   ├── static
+│   │   ├── strategies
+│   │   │   ├── __init__.py
+│   │   │   ├── base
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── strategy.py
+│   │   │   └── dantaro
+│   │   │       ├── __init__.py
+│   │   │       ├── okx_spot_v1.py
+│   │   │       └── okx_spot_v1_complete.py
+│   │   ├── tasks
+│   │   │   ├── __init__.py
+│   │   │   ├── bot_tasks.py
+│   │   │   └── monitoring_tasks.py
+│   │   ├── trading
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   └── live_client.py
+│   │   ├── utils
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   └── trading
+│   │   │       └── __init__.py
+│   │   └── websockets
+│   │       ├── __init__.py
+│   │       ├── bot_socket.py
+│   │       └── price_socket.py
+│   ├── autoblitz.db
+│   ├── backup
+│   │   └── original_files
+│   │       ├── 20250617_165354
+│   │       │   ├── backup_info.md
+│   │       │   ├── coin_data
+│   │       │   ├── coin_data_manager.py
+│   │       │   ├── okx_coin_info_collector.py
+│   │       │   ├── okx_complete_cycle_test.py
+│   │       │   └── okx_multi_coin_test.py
+│   │       └── 20250617_165522
+│   │           ├── backup_timestamp.txt
+│   │           ├── coin_data
+│   │           ├── coin_data_manager.py
+│   │           ├── okx_coin_info_collector.py
+│   │           ├── okx_complete_cycle_test.py
+│   │           └── okx_multi_coin_test.py
+│   ├── bot_creation_test.py
+│   ├── bot_engine_test.py
+│   ├── bot_test.py
+│   ├── check_account_status.py
+│   ├── check_bot_status.py
+│   ├── coin_data
+│   │   ├── okx_coins_20250617_113547.json
+│   │   ├── okx_coins_20250617_114400.json
+│   │   └── okx_coins_latest.json -> okx_coins_20250617_114400.json
+│   ├── coin_data_manager.py
+│   ├── create_tables.py
+│   ├── db_test.py
+│   ├── debug_okx_auth.py
+│   ├── debug_okx_auth_fixed.py
+│   ├── debug_orderbook.py
+│   ├── emergency_sell.py
+│   ├── final_perfect_bot.py
+│   ├── fix_coin_service_imports.py
+│   ├── fixed_pro_bot.py
+│   ├── fixed_trading_bot.py
+│   ├── integrated_test.py
+│   ├── integrated_trading_bot.py
+│   ├── integrated_web_bot.py
+│   ├── integration_test.py
+│   ├── integration_test_final.py
+│   ├── live_bot_test.py
+│   ├── live_trading.log
+│   ├── logs
+│   │   ├── integrated_bot_20250617.log
+│   │   ├── real_trading_20250617.log
+│   │   └── trading_bot_20250617.log
+│   ├── main_trading_bot.py
+│   ├── minimal_bot_test.py
+│   ├── monitor_live_trading.py
+│   ├── okx_coin_info_collector.py
+│   ├── performance_tracker.py
+│   ├── real_bot_test.py
+│   ├── real_trading_corrected.py
+│   ├── real_trading_system.py
+│   ├── requirements.txt
+│   ├── run_tests.py
+│   ├── scripts
+│   │   └── README.md
+│   ├── server.log
+│   ├── simple_bot_test.py
+│   ├── simulation_test.py
+│   ├── structure_based_trading_bot.py
+│   ├── temp_lines.txt
+│   ├── tests
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── integration
+│   │   │   ├── __init__.py
+│   │   │   └── final_test.py
+│   │   ├── okx
+│   │   │   ├── __init__.py
+│   │   │   ├── okx_complete_cycle_test.py
+│   │   │   └── okx_multi_coin_test.py
+│   │   └── unit
+│   │       ├── __init__.py
+│   │       ├── okx_real_trade_test.py
+│   │       ├── simple_test.py
+│   │       ├── test_modules.py
+│   │       ├── test_okx_api.py
+│   │       ├── test_okx_connection.py
+│   │       └── test_real_bot.py
+│   └── trading_dashboard.html
+├── autoblitz-frontend
+│   ├── package.json
+│   ├── public
+│   └── src
+├── autoblitz-infrastructure
+│   ├── cloudformation
+│   └── terraform
+├── autoblitz-project
+│   └── docs
+│       ├── 00-project-file-management.md
+│       ├── api
+│       ├── architecture
+│       │   └── 01-detailed-structure-analysis.md
+│       ├── development
+│       └── progress
+├── autoblitz.db
+├── bot_engine_test.py
+├── bot_engine_test_fixed.py
+├── coin_data
+│   ├── okx_coins_20250617_153857.json
+│   ├── okx_coins_20250618_120913.json
+│   ├── okx_coins_20250618_120924.json
+│   └── okx_coins_latest.json -> okx_coins_20250618_120924.json
+├── logs
+├── professional_trading_bot.py
+├── structure.txt
+└── trading_bot.log
+
+73 directories, 191 files

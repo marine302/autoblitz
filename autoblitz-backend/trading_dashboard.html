@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오토블리츠 거래 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-card .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #ffd700;
+        }
+        
+        .stat-card .label {
+            font-size: 1em;
+            opacity: 0.8;
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .bot-list {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .bot-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #00ff88;
+        }
+        
+        .bot-info h3 {
+            margin-bottom: 5px;
+            color: #ffd700;
+        }
+        
+        .bot-stats {
+            text-align: right;
+        }
+        
+        .profit-positive {
+            color: #00ff88;
+        }
+        
+        .profit-negative {
+            color: #ff6b6b;
+        }
+        
+        .status-active {
+            background: #00ff88;
+            color: black;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .status-stopped {
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .live-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #00ff88, #00d4aa);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a5a);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>🚀 오토블리츠 거래 대시보드</h1>
+            <p><span class="live-indicator"></span>실시간 자동매매 모니터링</p>
+        </div>
+        
+        <!-- 통계 카드 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">💰</div>
+                <div class="value" id="total-profit">+0.036</div>
+                <div class="label">총 수익 (USDT)</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value" id="total-trades">2</div>
+                <div class="label">총 거래 수</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">⚡</div>
+                <div class="value" id="hourly-profit">1.072</div>
+                <div class="label">시간당 수익</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="value" id="roi">0.36%</div>
+                <div class="label">수익률 (ROI)</div>
+            </div>
+        </div>
+        
+        <!-- 수익 차트 -->
+        <div class="chart-container">
+            <h3 style="margin-bottom: 20px;">📈 실시간 수익 차트</h3>
+            <canvas id="profitChart" width="400" height="200"></canvas>
+        </div>
+        
+        <!-- 봇 목록 -->
+        <div class="bot-list">
+            <h3 style="margin-bottom: 20px;">🤖 활성 봇 목록</h3>
+            
+            <div class="bot-item">
+                <div class="bot-info">
+                    <h3>safe_test_bot</h3>
+                    <p>BTC-USDT • 10.0 USDT</p>
+                </div>
+                <div class="bot-stats">
+                    <div class="profit-positive">+0.036 USDT</div>
+                    <div>2회 거래 • 0.36% ROI</div>
+                    <span class="status-stopped">완료</span>
+                </div>
+            </div>
+            
+            <div class="bot-item">
+                <div class="bot-info">
+                    <h3>btc_dantaro_v1</h3>
+                    <p>BTC-USDT • 100.0 USDT</p>
+                </div>
+                <div class="bot-stats">
+                    <div class="profit-positive">+50.25 USDT</div>
+                    <div>15회 거래 • 50.25% ROI</div>
+                    <span class="status-active">활성</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 제어 패널 -->
+        <div class="control-panel">
+            <h3 style="margin-bottom: 20px;">🎮 봇 제어</h3>
+            <button class="btn" onclick="startNewBot()">새 봇 시작</button>
+            <button class="btn" onclick="refreshData()">데이터 새로고침</button>
+            <button class="btn btn-danger" onclick="emergencyStop()">긴급 정지</button>
+        </div>
+    </div>
+    
+    <script>
+        // 수익 차트 설정
+        const ctx = document.getElementById('profitChart').getContext('2d');
+        
+        const profitChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['시작', '1분', '2분', '3분', '현재'],
+                datasets: [{
+                    label: '누적 수익 (USDT)',
+                    data: [0, 0, 0.019, 0.036, 0.036],
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: 'white'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.2)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: 'white'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.2)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // 실시간 데이터 업데이트
+        function updateData() {
+            // API에서 실제 데이터 가져오기
+            fetch('/api/v1/bots/')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('API 데이터:', data);
+                    // 실제 데이터로 업데이트
+                })
+                .catch(error => {
+                    console.log('API 연결 대기 중...');
+                });
+        }
+        
+        // 제어 함수들
+        function startNewBot() {
+            alert('새 봇 시작 기능 (API 연동 예정)');
+        }
+        
+        function refreshData() {
+            updateData();
+            alert('데이터 새로고침 완료!');
+        }
+        
+        function emergencyStop() {
+            if (confirm('모든 봇을 긴급 정지하시겠습니까?')) {
+                alert('긴급 정지 실행됨');
+            }
+        }
+        
+        // 5초마다 데이터 업데이트
+        setInterval(updateData, 5000);
+        
+        // 초기 데이터 로드
+        updateData();
+    </script>
+</body>
+</html>
